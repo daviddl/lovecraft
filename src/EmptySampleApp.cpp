@@ -13,6 +13,7 @@
 #include <platform/YiSystemInformationBridgeLocator.h>
 #include <scenetree/YiSceneManager.h>
 #include <view/YiSceneView.h>
+#include "quest/QuestList.h"
 
 /*! \addtogroup empty-sample
   @{
@@ -119,12 +120,13 @@ void EmptySampleApp::SetApplicationPlatform(ApplicationConfiguration &applicatio
 
 bool EmptySampleApp::UserStart()
 {
-    // This is the first function called upon completion of engine and application initialization. Return false in case of failure.
+    CYIString assetPath = CYIApp::GetAssetsPath();
+    QuestList* quests = QuestList::FromJSON(assetPath + "resources/Quests.json");
 
-	//QuestModel* testQuest = QuestParser::ParseQuest("Resources/TestQuest.json");
+    YI_LOGI("EmptySampleApp::UserStart", "%s", quests->Display().GetData());
 
-	//CYIString testQuestString = testQuest->ToString();
-    
+    delete quests;
+
 	return true;
 }
 

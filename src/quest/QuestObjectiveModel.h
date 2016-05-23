@@ -1,8 +1,10 @@
-#ifndef QUEST_OBJECTIVE_MODEL
-#define QUEST_OBJECTIVE_MODEL
+#ifndef QUEST_OBJECTIVE_MODEL_H
+#define QUEST_OBJECTIVE_MODEL_H
 
 #include <utility\YiString.h>
 #include <datamodel\YiAbstractDataModel.h>
+#include <rapidjson/document.h>
+#include "QuestObjectiveResolution.h"
 
 /*
 This Class is a model which contains all the possible resolutions of an objective, as well as a name for the objective itself and a pointer to the current state.
@@ -10,13 +12,20 @@ This Class is a model which contains all the possible resolutions of an objectiv
 class QuestObjectiveModel : CYIAbstractDataModel
 {
 public:
-	QuestObjectiveModel(CYIString name, YI_INT32 numberStates);
-	~QuestObjectiveModel();
-private: 
-	CYIString name;
+    QuestObjectiveModel(CYIString name);
+    ~QuestObjectiveModel();
 
-	//I wanted to use the specialized index class, but it has no public constructors, therefore the compiler would not buck at this class's constructor.
-	YI_INT32 currentState;
+    void AddRowsToMatchIndex(YI_INT32 index);
+    void AddResolution(QuestObjectiveResolution* resolution, YI_INT32 index);
+
+    CYIString Display();
+
+    static QuestObjectiveModel* FromJSON(const yi::rapidjson::Value& objectiveJSONObject);
+
+private:
+    void Initialize(CYIString name);
+
+    CYIString m_name;
 };
 
 #endif

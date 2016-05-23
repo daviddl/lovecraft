@@ -1,61 +1,92 @@
 #include <utility\YiString.h>
 #include <datamodel\YiAbstractDataModel.h>
-#include "quest/QuestModel.h"
+#include "QuestModel.h"
+#include "QuestObjectiveModel.h"
 
-QuestModel::QuestModel(CYIString name, CYIString description) : CYIAbstractDataModel(0, 1)
+QuestModel::QuestModel(CYIString name, CYIString description) : CYIAbstractDataModel(1)
 {
-	this->name = name;
-	this->description = description;
+    Initialize(name, description);
 }
-//
-//QuestModel::QuestModel(CYIString name, CYIString description, YI_INT32 nObjectives) : CYIAbstractDataModel(nObjectives, 1)
-//{
-//	this->name = name;
-//	this->description = description;
-//}
+
+void QuestModel::Initialize(CYIString name, CYIString description)
+{
+    m_name = name;
+    m_description = description;
+}
 
 QuestModel::~QuestModel()
-{	
+{
 }
 
-CYIString QuestModel::ToString() const
+void QuestModel::AddRowsToMatchIndex(YI_INT32 index)
 {
-	//Quest Info
-	CYIString result;
-	result.Append(name);
-	result.Append(CYIString("\n"));
-	result.Append(description);
+    YI_INT32 n_row = GetRowCount();
+    YI_INT32 missingRows = (index + 1) - n_row;
 
-	return result;
+    if (missingRows > 0)
+    {
+        InsertRows(n_row, missingRows);
+    }
 }
 
-void QuestModel::AddObjective(CYIString name, const std::vector<CYIString> resolutions)
+void QuestModel::AddObjective(QuestObjectiveModel* objective, YI_INT32 index)
 {
-	InsertRow(GetRowCount() - 1);
-	
-	
+    AddRowsToMatchIndex(index);
+
+    if (HasIndex(index, 0))
+    {
+        CYISharedPtr<QuestObjectiveModel> objectivePtr = CYISharedPtr<QuestObjectiveModel>(objective);
+        SetItemData(GetIndex(index, 0), CYIAny(objectivePtr));
+    }
 }
 
-
-//Test Method
-void QuestModel::PopulateAndRead()
+QuestModel* QuestModel::FromJSON(const yi::rapidjson::Value& questJSONObject)
 {
-	//Populate
-	YI_INT32 nItems = 10;
-	CYIAbstractDataModel* model2 = new CYIAbstractDataModel(nItems, 1); //Now I know that this can be instantiated, even though I have yet to see an implementation of the class.
+    CYIParsingError parsingError;
 
-	CYIAbstractDataModel model(nItems, 1); // nItems rows, 1 column
-	for (YI_INT32 i = 0; i < nItems; i++)
-	{
-		model2->SetItemData(model2->GetIndex(i, 0), CYIAny(CYIString::FromValue<YI_INT32>(i)));
-	}
-				
-	//Reading a List of Strings :
-	for (YI_INT32 i = 0; i < nItems; i++)
-	{
-		CYIAny listData = model2->GetItemData(model2->GetIndex(i, 0));
-		YI_LOGD("DATAMODEL", "Contains %s at index %d", listData.Get<CYIString>().GetData(), i);
-	}
+    CYIString questName;
+    CYIString questDescription;
 
-	free(model2);
+    CYIRapidJSONUtility::GetStringField(&questJSONObject, "Name", questName, parsingError);
+    YI_ASSERT(!parsingError.HasError(), "QuestModel::FromJSON", parsingError.GetParsingErrorMessage());
+
+    CYIRapidJSONUtility::GetStringField(&questJSONObject, "Description", questDescription, parsingError);
+    YI_ASSERT(!parsingError.HasError(), "QuestModel::FromJSON", parsingError.GetParsingErrorMessage());
+
+    QuestModel* newQuest = new QuestModel(questName, questDescription);
+
+    const yi::rapidjson::Value& objectives = questJSONObject["Objectives"];
+    YI_ASSERT(objectives.IsArray(), "QuestModel::FromJSON", "Could not find objectives array in JSON file.");
+
+    for (yi::rapidjson::SizeType i = 0; i < objectives.Size(); ++i)
+    {
+        const yi::rapidjson::Value& objective = objectives[i];
+
+        newQuest->AddObjective(QuestObjectiveModel::FromJSON(objective), i);
+    }
+
+    return newQuest;
+}
+
+yi::rapidjson::Document* ToJSON();
+
+CYIString QuestModel::Display()
+{
+    CYIString questInfo;
+    questInfo.Append("QuestName: " + m_name + "\n");
+    questInfo.Append("QuestDescription: " + m_description + "\n");
+
+    for (YI_INT32 i = 0; i < GetRowCount(); ++i)
+    {
+        CYIAny data(GetItemData(GetIndex(i, 0)));
+
+        if (!data.Empty())
+        {
+            CYISharedPtr<QuestObjectiveModel> objective = data.Get<CYISharedPtr<QuestObjectiveModel>>();
+
+            questInfo.Append(objective->Display() + "\n");
+        }
+    }
+
+    return questInfo;
 }
